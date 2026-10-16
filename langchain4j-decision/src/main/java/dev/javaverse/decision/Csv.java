@@ -2,6 +2,9 @@ package dev.javaverse.decision;
 
 import org.tinylog.Logger;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -25,15 +28,15 @@ class Csv {
 
     List<String> getAll(String header) {
         return data.stream()
-                   .map(l -> l.get(header))
-                   .toList();
+                .map(l -> l.get(header))
+                .toList();
     }
 
     List<String> getTop(String header, int limit) {
         return data.stream()
-                   .limit(limit)
-                   .map(l -> l.get(header))
-                   .toList();
+                .limit(limit)
+                .map(l -> l.get(header))
+                .toList();
     }
 
     @Override
@@ -42,16 +45,15 @@ class Csv {
     }
 
     private List<Map<String, String>> parse(String filename) {
-        try {
-            var url = Csv.class.getResource(filename);
-            if(url == null) {
-                throw new IllegalArgumentException("CSV resource not found: " + filename);
-            }
+        var is = getClass().getResourceAsStream(filename);
+        if (is == null) {
+            throw new IllegalArgumentException("'%s' not found".formatted(filename));
+        }
 
-            var file = Path.of(url.toURI());
-            var lines = Files.readAllLines(file);
+        try (var reader = new BufferedReader(new InputStreamReader(is))) {
 
-            if(lines.isEmpty()) {
+            var lines = reader.lines().toList();
+            if (lines.isEmpty()) {
                 return List.of();
             }
 
@@ -61,19 +63,20 @@ class Csv {
             Logger.debug("Headers: {}", () -> Arrays.toString(headers));
             return createData(headers, body);
 
-        } catch(Exception e) {
-            throw new RuntimeException("Failed to parse CSV: " + filename, e);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to parse: " + filename, e);
         }
     }
+
 
     private List<Map<String, String>> createData(String[] headers, List<String[]> body) {
 
         var data = new ArrayList<Map<String, String>>();
 
-        for(String[] line : body) {
+        for (String[] line : body) {
             var map = new LinkedHashMap<String, String>();
 
-            for(int i = 0; i < headers.length; i++) {
+            for (int i = 0; i < headers.length; i++) {
                 var value = i < line.length ? line[i] : "";
                 map.put(headers[i], value);
             }
@@ -86,15 +89,15 @@ class Csv {
 
     private String[] headers(String headerStr) {
         return Arrays.stream(headerStr.replace("\uFEFF", "").split(",", -1))
-                     .map(String::trim)
-                     .toArray(String[]::new);
+                .map(String::trim)
+                .toArray(String[]::new);
     }
 
     private List<String[]> body(List<String> lines) {
         return lines.stream()
-                    .skip(1)
-                    .map(line -> line.split(",", -1))
-                    .toList();
+                .skip(1)
+                .map(line -> line.split(",", -1))
+                .toList();
 
     }
 
